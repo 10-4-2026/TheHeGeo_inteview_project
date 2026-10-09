@@ -1,0 +1,8 @@
+{
+  "train_rows": 35392,
+  "test_rows": 9487,
+  "split_date": "2026-08-01",
+  "test_late_rate": 0.1415,
+  "roc_auc": 0.7996,
+  "pr_auc": 0.356
+}

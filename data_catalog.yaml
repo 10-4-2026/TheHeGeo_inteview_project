@@ -1,0 +1,71 @@
+# Data catalog tối giản: owner, phân loại dữ liệu, PII, retention, lineage.
+# Trong production đưa vào DataHub / OpenMetadata / Unity Catalog; file này là "source of truth" dạng code.
+classification_levels:
+  restricted: Chứa PII thô (CCCD, họ tên, SĐT). Chỉ pipeline service account được đọc.
+  internal: Đã che/băm PII. Analyst & Data Scientist được đọc.
+  public: Số liệu tổng hợp, có thể công bố.
+
+datasets:
+  - name: bronze.applications
+    layer: bronze
+    owner: data-platform
+    classification: restricted
+    retention: 90 ngày (đủ để replay/backfill), sau đó xoá
+    partitioned_by: batch_date
+    upstream: [landing/applications/*.csv]
+    pii_columns: [citizen_id, full_name, phone]
+
+  - name: silver.applications
+    layer: silver
+    owner: data-platform
+    classification: internal
+    retention: 5 năm
+    grain: 1 dòng / hồ sơ (phiên bản mới nhất)
+    upstream: [bronze.applications, silver.services, silver.units]
+    pii_handling:
+      citizen_id: "sha256(salt + CCCD) -> citizen_key (pseudonymization, salt lưu ở secret manager)"
+      phone: "chỉ giữ 3 số cuối -> phone_masked"
+      full_name: "loại bỏ"
+    dq_rules: [missing_app_id, invalid_citizen_id, unknown_service, unknown_unit, unknown_channel,
+               unknown_status, unparseable_submitted_at, unparseable_completed_at,
+               completed_before_submitted, negative_fee]
+
+  - name: silver.quarantine.applications
+    layer: silver
+    owner: data-platform
+    classification: internal
+    description: Bản ghi vi phạm DQ kèm cột dq_errors; gửi đơn vị nguồn sửa rồi nạp lại.
+    upstream: [bronze.applications]
+
+  - name: gold.fact_application
+    layer: gold
+    owner: analytics
+    classification: internal
+    grain: 1 dòng / hồ sơ hợp lệ
+    upstream: [silver.applications, silver.services]
+    metrics:
+      is_late: completed_at > submitted_at + sla_days (SLA tính theo ngày lịch - xem README)
+      is_overdue_open: chưa xử lý xong và đã quá hạn tại ngày as_of
+
+  - name: gold.mart_unit_monthly_kpi
+    layer: gold
+    owner: analytics
+    classification: public
+    grain: tháng x phường
+    upstream: [gold.fact_application, gold.dim_unit]
+
+  - name: gold.mart_service_kpi
+    layer: gold
+    owner: analytics
+    classification: public
+    grain: thủ tục
+    upstream: [gold.fact_application, gold.dim_service]
+
+  - name: gold.feature_late_risk
+    layer: gold
+    owner: data-science
+    classification: internal
+    grain: 1 dòng / hồ sơ đã có kết quả
+    label: label_is_late
+    point_in_time: Feature theo phường chỉ dùng dữ liệu từ (ngày nộp - 30) đến (ngày nộp - 1)
+    upstream: [gold.fact_application, silver.services]

@@ -1,0 +1,8 @@
+pyspark==3.5.3
+pandas>=2.0
+pyarrow>=14
+scikit-learn>=1.4
+pyyaml>=6
+pytest>=8
+# Airflow cài riêng theo constraints file chính thức, ví dụ:
+# pip install "apache-airflow==3.*" --constraint https://raw.githubusercontent.com/apache/airflow/constraints-<ver>/constraints-<py>.txt

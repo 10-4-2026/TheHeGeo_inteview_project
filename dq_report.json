@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-10-08T14:57:03",
+  "as_of": "2026-09-30",
+  "rows_valid": 45410,
+  "rows_quarantined": 525,
+  "checks": [
+    {
+      "check": "silver_not_empty",
+      "severity": "error",
+      "value": 45410,
+      "threshold": "> 0",
+      "passed": true,
+      "description": "Silver phải có dữ liệu"
+    },
+    {
+      "check": "app_id_unique",
+      "severity": "error",
+      "value": 0,
+      "threshold": "= 0",
+      "passed": true,
+      "description": "Mỗi hồ sơ chỉ còn 1 dòng sau khi khử trùng lặp"
+    },
+    {
+      "check": "quarantine_ratio",
+      "severity": "error",
+      "value": 0.0114,
+      "threshold": "<= 0.05",
+      "passed": true,
+      "description": "Tỷ lệ bản ghi lỗi bất thường => nghi nguồn đổi định dạng"
+    },
+    {
+      "check": "finished_has_completed_at",
+      "severity": "error",
+      "value": 0,
+      "threshold": "= 0",
+      "passed": true,
+      "description": "Hồ sơ đã xử lý xong phải có thời điểm hoàn thành"
+    },
+    {
+      "check": "referential_service",
+      "severity": "error",
+      "value": 0,
+      "threshold": "= 0",
+      "passed": true,
+      "description": "Mọi service_code phải tồn tại trong danh mục"
+    },
+    {
+      "check": "fee_null_ratio",
+      "severity": "warn",
+      "value": 0.1405,
+      "threshold": "<= 0.4",
+      "passed": true,
+      "description": "Phí bỏ trống (thường là thủ tục miễn phí)"
+    },
+    {
+      "check": "freshness",
+      "severity": "warn",
+      "value": "2026-09-30",
+      "threshold": ">= 2026-09-29",
+      "passed": true,
+      "description": "Batch mới nhất không được trễ quá 1 ngày so với ngày chạy"
+    }
+  ],
+  "quarantine_reasons": {
+    "unknown_service": 174,
+    "invalid_citizen_id": 158,
+    "negative_fee": 102,
+    "completed_before_submitted": 91
+  },
+  "gate_passed": true,
+  "failed_error_checks": [],
+  "run_id": "20261008T145628-81e249"
+}

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dịch vụ công KPI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{color-scheme:light;--bg:#f4f4f2;--surface:#fcfcfb;--border:#e4e3df;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;
+--s1:#2a78d6;--good:#1b7f3b;--bad:#c4302b;--warn:#a86b00;--grid:#ecebe7}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#111110;--surface:#1a1a19;--border:#2c2c2a;
+--text:#fff;--text2:#c3c2b7;--muted:#8f8e86;--s1:#3987e5;--good:#4cbb6c;--bad:#ef6b66;--warn:#e0a63a;--grid:#262624}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#111110;--surface:#1a1a19;--border:#2c2c2a;--text:#fff;--text2:#c3c2b7;--muted:#8f8e86;
+--s1:#3987e5;--good:#4cbb6c;--bad:#ef6b66;--warn:#e0a63a;--grid:#262624}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:24px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px}header p{margin:0;color:var(--text2)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0}
+.tile,.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.tile .label{color:var(--text2);font-size:12px}.tile .value{font-size:26px;font-weight:650;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 2px}.card .sub{color:var(--text2);font-size:12px;margin:0 0 10px}
+.chart{position:relative;height:260px}.chart.tall{height:380px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right}th:first-child,td:first-child{text-align:left}
+th{color:var(--text2);font-weight:600}.scroll{overflow-x:auto}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.ok{color:var(--good)}.fail{color:var(--bad)}.warnc{color:var(--warn)}
+footer{color:var(--muted);font-size:12px;margin-top:20px}
+</style></head><body><main>
+<header><h1>Giám sát xử lý hồ sơ thủ tục hành chính</h1>
+<p>Dữ liệu giả lập · 12 phường · lớp Gold của mini-lakehouse · cập nhật 2026-10-08 14:57</p></header>
+<section class="tiles" id="tiles"></section>
+<section class="grid2">
+ <div class="card"><h2>Hồ sơ tiếp nhận theo tháng</h2><p class="sub">Số hồ sơ</p><div class="chart"><canvas id="cVol"></canvas></div></div>
+ <div class="card"><h2>Tỷ lệ giải quyết đúng hạn theo tháng</h2><p class="sub">% hồ sơ đã xử lý xong trong SLA</p><div class="chart"><canvas id="cOnTime"></canvas></div></div>
+</section>
+<section class="grid2">
+ <div class="card"><h2>Tỷ lệ đúng hạn theo phường</h2><p class="sub">Toàn kỳ, sắp xếp giảm dần</p><div class="chart tall"><canvas id="cUnit"></canvas></div></div>
+ <div class="card"><h2>Tỷ lệ nộp trực tuyến theo tháng</h2><p class="sub">% hồ sơ nộp qua cổng dịch vụ công</p><div class="chart"><canvas id="cOnline"></canvas></div></div>
+</section>
+<section class="card" style="margin-bottom:12px"><h2>Thời gian xử lý theo thủ tục</h2><p class="sub">p50/p90 (ngày) so với SLA — thủ tục trễ nhiều nhất ở trên</p>
+<div class="scroll"><table id="tSvc"></table></div></section>
+<section class="grid2">
+ <div class="card"><h2>Data Quality gate</h2><p class="sub" id="dqSub"></p><div class="scroll"><table id="tDq"></table></div></div>
+ <div class="card"><h2>Bản ghi bị cách ly (quarantine)</h2><p class="sub">Theo lý do — chuyển lại đơn vị nguồn xử lý</p><div class="scroll"><table id="tQ"></table></div></div>
+</section>
+<footer>Nguồn: gold.fact_application, gold.mart_unit_monthly_kpi, gold.mart_service_kpi, reports/dq_report.json</footer>
+</main>
+<script>
+const D = {"kpi": {"received": 45410.0, "finished": 44879.0, "on_time_rate": 0.8457407696249917, "avg_days": 2.7787620045009946, "online_rate": 0.6455406298172208, "overdue_open": 22.0}, "monthly": {"submitted_month": ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"], "received": [5117, 4788, 5095, 5057, 4921, 5175, 5239, 4955, 5063], "finished": [5117, 4788, 5095, 5057, 4921, 5175, 5239, 4955, 4532], "on_time": [4293, 4021, 4264, 4195, 4143, 4420, 4475, 4222, 3923], "online_rate": [0.5649707250341997, 0.5714360484544694, 0.5899991167811579, 0.6175652165315404, 0.6301628327575696, 0.6796057971014494, 0.6846813323153274, 0.7180699091826438, 0.7495628086114952], "on_time_rate": [0.8389681453976939, 0.8398078529657477, 0.8368989205103042, 0.8295432074352382, 0.8419020524283682, 0.8541062801932368, 0.8541706432525291, 0.8520686175580222, 0.865622241835834]}, "units": [{"unit_code": "P01", "unit_name": "UBND phường Giảng Võ", "received": 4836, "on_time": 4775, "finished": 4800, "overdue_open": 0, "on_time_rate": 0.9947916666666666}, {"unit_code": "P08", "unit_name": "UBND phường Bạch Mai", "received": 2626, "on_time": 2592, "finished": 2607, "overdue_open": 0, "on_time_rate": 0.9942462600690449}, {"unit_code": "P12", "unit_name": "UBND phường Thanh Xuân", "received": 4168, "on_time": 4014, "finished": 4131, "overdue_open": 0, "on_time_rate": 0.971677559912854}, {"unit_code": "P05", "unit_name": "UBND phường Đống Đa", "received": 5045, "on_time": 4834, "finished": 4993, "overdue_open": 0, "on_time_rate": 0.9681554175846184}, {"unit_code": "P02", "unit_name": "UBND phường Ba Đình", "received": 2341, "on_time": 2222, "finished": 2317, "overdue_open": 0, "on_time_rate": 0.9589987052222702}, {"unit_code": "P11", "unit_name": "UBND phường Tây Hồ", "received": 3109, "on_time": 2843, "finished": 3079, "overdue_open": 0, "on_time_rate": 0.9233517375771354}, {"unit_code": "P04", "unit_name": "UBND phường Cửa Nam", "received": 3162, "on_time": 2507, "finished": 3122, "overdue_open": 2, "on_time_rate": 0.8030108904548366}, {"unit_code": "P06", "unit_name": "UBND phường Văn Miếu - Quốc Tử Giám", "received": 4804, "on_time": 3765, "finished": 4741, "overdue_open": 4, "on_time_rate": 0.7941362581733812}, {"unit_code": "P10", "unit_name": "UBND phường Nghĩa Đô", "received": 2491, "on_time": 1855, "finished": 2456, "overdue_open": 2, "on_time_rate": 0.7552931596091205}, {"unit_code": "P03", "unit_name": "UBND phường Hoàn Kiếm", "received": 3291, "on_time": 2332, "finished": 3247, "overdue_open": 4, "on_time_rate": 0.7182014166923314}, {"unit_code": "P07", "unit_name": "UBND phường Hai Bà Trưng", "received": 5734, "on_time": 3781, "finished": 5639, "overdue_open": 5, "on_time_rate": 0.6705089554885618}, {"unit_code": "P09", "unit_name": "UBND phường Cầu Giấy", "received": 3803, "on_time": 2436, "finished": 3747, "overdue_open": 5, "on_time_rate": 0.6501200960768615}], "services": [{"service_code": "TP002", "finished": 2603, "late_rate": 0.1644, "p50_processing_days": 1.89, "p90_processing_days": 3.42, "service_name": "Đăng ký kết hôn", "sector": "Tư pháp - Hộ tịch", "sla_days": 3}, {"service_code": "XH001", "finished": 1995, "late_rate": 0.1589, "p50_processing_days": 6.32, "p90_processing_days": 11.26, "service_name": "Trợ cấp xã hội hằng tháng", "sector": "Lao động - Xã hội", "sla_days": 10}, {"service_code": "XD001", "finished": 1961, "late_rate": 0.1576, "p50_processing_days": 9.44, "p90_processing_days": 16.86, "service_name": "Cấp giấy phép xây dựng nhà ở riêng lẻ", "sector": "Xây dựng", "sla_days": 15}, {"service_code": "DD001", "finished": 2988, "late_rate": 0.1573, "p50_processing_days": 6.3, "p90_processing_days": 11.33, "service_name": "Đăng ký biến động đất đai", "sector": "Đất đai", "sla_days": 10}, {"service_code": "KT001", "finished": 4486, "late_rate": 0.1563, "p50_processing_days": 1.9, "p90_processing_days": 3.36, "service_name": "Đăng ký hộ kinh doanh", "sector": "Kinh tế", "sla_days": 3}, {"service_code": "TP001", "finished": 7128, "late_rate": 0.1553, "p50_processing_days": 0.63, "p90_processing_days": 1.12, "service_name": "Đăng ký khai sinh", "sector": "Tư pháp - Hộ tịch", "sla_days": 1}, {"service_code": "XH002", "finished": 3380, "late_rate": 0.155, "p50_processing_days": 3.18, "p90_processing_days": 5.61, "service_name": "Cấp thẻ BHYT cho trẻ dưới 6 tuổi", "sector": "Lao động - Xã hội", "sla_days": 5}, {"service_code": "TP003", "finished": 15017, "late_rate": 0.1526, "p50_processing_days": 0.63, "p90_processing_days": 1.11, "service_name": "Chứng thực bản sao từ bản chính", "sector": "Tư pháp - Chứng thực", "sla_days": 1}, {"service_code": "TP004", "finished": 3881, "late_rate": 0.1458, "p50_processing_days": 1.88, "p90_processing_days": 3.26, "service_name": "Xác nhận tình trạng hôn nhân", "sector": "Tư pháp - Hộ tịch", "sla_days": 3}, {"service_code": "DD002", "finished": 1440, "late_rate": 0.1451, "p50_processing_days": 12.48, "p90_processing_days": 21.81, "service_name": "Cấp GCN quyền sử dụng đất lần đầu", "sector": "Đất đai", "sla_days": 20}], "dq": {"generated_at": "2026-10-08T14:57:03", "as_of": "2026-09-30", "rows_valid": 45410, "rows_quarantined": 525, "checks": [{"check": "silver_not_empty", "severity": "error", "value": 45410, "threshold": "> 0", "passed": true, "description": "Silver phải có dữ liệu"}, {"check": "app_id_unique", "severity": "error", "value": 0, "threshold": "= 0", "passed": true, "description": "Mỗi hồ sơ chỉ còn 1 dòng sau khi khử trùng lặp"}, {"check": "quarantine_ratio", "severity": "error", "value": 0.0114, "threshold": "<= 0.05", "passed": true, "description": "Tỷ lệ bản ghi lỗi bất thường => nghi nguồn đổi định dạng"}, {"check": "finished_has_completed_at", "severity": "error", "value": 0, "threshold": "= 0", "passed": true, "description": "Hồ sơ đã xử lý xong phải có thời điểm hoàn thành"}, {"check": "referential_service", "severity": "error", "value": 0, "threshold": "= 0", "passed": true, "description": "Mọi service_code phải tồn tại trong danh mục"}, {"check": "fee_null_ratio", "severity": "warn", "value": 0.1405, "threshold": "<= 0.4", "passed": true, "description": "Phí bỏ trống (thường là thủ tục miễn phí)"}, {"check": "freshness", "severity": "warn", "value": "2026-09-30", "threshold": ">= 2026-09-29", "passed": true, "description": "Batch mới nhất không được trễ quá 1 ngày so với ngày chạy"}], "quarantine_reasons": {"unknown_service": 174, "invalid_citizen_id": 158, "negative_fee": 102, "completed_before_submitted": 91}, "gate_passed": true, "failed_error_checks": [], "run_id": "20261008T145628-81e249"}, "generated_at": "2026-10-08 14:57"};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pct = v => v==null ? '—' : (v*100).toFixed(1)+'%';
+const num = v => v==null ? '—' : Math.round(v).toLocaleString('vi-VN');
+const k = D.kpi;
+const tiles = [["Hồ sơ tiếp nhận", num(k.received)], ["Đã giải quyết", num(k.finished)],
+  ["Đúng hạn", pct(k.on_time_rate)], ["TB ngày xử lý", k.avg_days.toFixed(2)],
+  ["Nộp trực tuyến", pct(k.online_rate)], ["Đang quá hạn", num(k.overdue_open)]];
+document.getElementById('tiles').innerHTML = tiles.map(([l,v])=>`<div class="tile"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+
+const charts = [];
+function base(yFmt, yMin, yMax){
+  return {responsive:true, maintainAspectRatio:false, animation:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+yFmt(c.parsed.y ?? c.parsed.x)}}},
+    scales:{x:{grid:{display:false}, ticks:{color:css('--text2')}, border:{color:css('--border')}},
+            y:{min:yMin, max:yMax, grid:{color:css('--grid')}, border:{display:false},
+               ticks:{color:css('--text2'), callback:v=>yFmt(v)}}}};
+}
+function draw(){
+  charts.forEach(c=>c.destroy()); charts.length=0;
+  const s1 = css('--s1'), surf = css('--surface');
+  const m = D.monthly;
+  charts.push(new Chart(cVol, {type:'bar', data:{labels:m.submitted_month, datasets:[{data:m.received,
+    backgroundColor:s1, borderRadius:{topLeft:4,topRight:4}, borderSkipped:'bottom', maxBarThickness:28}]},
+    options:base(num, 0)}));
+  charts.push(new Chart(cOnTime, {type:'line', data:{labels:m.submitted_month, datasets:[{data:m.on_time_rate,
+    borderColor:s1, borderWidth:2, pointRadius:4, pointBackgroundColor:s1, pointBorderColor:surf, pointBorderWidth:2, tension:0}]},
+    options:base(pct)}));
+  charts.push(new Chart(cOnline, {type:'line', data:{labels:m.submitted_month, datasets:[{data:m.online_rate,
+    borderColor:s1, borderWidth:2, pointRadius:4, pointBackgroundColor:s1, pointBorderColor:surf, pointBorderWidth:2, tension:0}]},
+    options:base(pct, 0, 1)}));
+  const u = D.units, ou = base(pct);
+  ou.indexAxis='y'; ou.interaction={mode:'nearest', axis:'y', intersect:false};
+  ou.scales = {x:{grid:{color:css('--grid')}, border:{display:false}, ticks:{color:css('--text2'), callback:v=>pct(v)}},
+               y:{grid:{display:false}, ticks:{color:css('--text2')}, border:{color:css('--border')}}};
+  ou.plugins.tooltip.callbacks.label = c => ` ${pct(c.parsed.x)} · ${num(u[c.dataIndex].received)} hồ sơ`;
+  charts.push(new Chart(cUnit, {type:'bar', data:{labels:u.map(r=>r.unit_name.replace('UBND phường ','')),
+    datasets:[{data:u.map(r=>r.on_time_rate), backgroundColor:s1, borderRadius:{topRight:4,bottomRight:4}, borderSkipped:'left', barPercentage:.7}]},
+    options:ou}));
+}
+draw();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+
+document.getElementById('tSvc').innerHTML = '<tr><th>Thủ tục</th><th>Lĩnh vực</th><th>SLA</th><th>p50</th><th>p90</th><th>Trễ hạn</th><th>Đã xử lý</th></tr>' +
+  D.services.map(s=>`<tr><td>${s.service_name}</td><td>${s.sector}</td><td>${s.sla_days}</td><td>${s.p50_processing_days.toFixed(2)}</td>
+  <td class="${s.p90_processing_days>s.sla_days?'fail':''}">${s.p90_processing_days.toFixed(2)}</td><td>${pct(s.late_rate)}</td><td>${num(s.finished)}</td></tr>`).join('');
+
+const dq = D.dq;
+document.getElementById('dqSub').innerHTML = `Gate: <span class="pill ${dq.gate_passed?'ok':'fail'}">${dq.gate_passed?'✓ PASSED':'✗ FAILED'}</span> · ${num(dq.rows_valid)} hợp lệ · ${num(dq.rows_quarantined)} cách ly`;
+document.getElementById('tDq').innerHTML = '<tr><th>Check</th><th>Mức</th><th>Giá trị</th><th>Ngưỡng</th><th>Kết quả</th></tr>' +
+  dq.checks.map(c=>`<tr><td>${c.check}</td><td>${c.severity}</td><td>${c.value}</td><td>${c.threshold}</td>
+  <td><span class="${c.passed?'ok':(c.severity==='error'?'fail':'warnc')}">${c.passed?'✓ đạt':'✗ không đạt'}</span></td></tr>`).join('');
+document.getElementById('tQ').innerHTML = '<tr><th>Lý do</th><th>Số bản ghi</th></tr>' +
+  Object.entries(dq.quarantine_reasons).map(([r,n])=>`<tr><td>${r}</td><td>${num(n)}</td></tr>`).join('');
+</script></body></html>
